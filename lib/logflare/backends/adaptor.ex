@@ -91,31 +91,6 @@ defmodule Logflare.Backends.Adaptor do
   @callback validate_config(changeset :: Ecto.Changeset.t()) :: Ecto.Changeset.t()
 
   @doc """
-  Validate configuration for given adaptor implementation
-  """
-  @spec cast_and_validate_config(module(), map()) :: Ecto.Changeset.t()
-  def cast_and_validate_config(mod, params) when is_atom(mod) do
-    params
-    |> mod.cast_config()
-    |> mod.validate_config()
-  end
-
-  @doc """
-  Returns the list of supported query languages for a given backend.
-  Returns an empty list if the adaptor does not support querying.
-  """
-  @spec get_supported_languages(Backend.t()) :: [atom()]
-  def get_supported_languages(%Backend{} = backend) do
-    adaptor = get_adaptor(backend)
-
-    if function_exported?(adaptor, :get_supported_languages, 0) do
-      adaptor.get_supported_languages()
-    else
-      []
-    end
-  end
-
-  @doc """
   Optional callback to transform a query from one language/dialect to the backend's expected format.
 
   This allows adaptors to handle query language transformations specific to their backend.
@@ -168,6 +143,52 @@ defmodule Logflare.Backends.Adaptor do
   """
   @callback send_alert(Backend.t(), AlertQuery.t(), [term()]) :: :ok | {:error, term()}
 
+  @doc """
+  Indicates if this adaptor supports being a default ingest backend.
+  """
+  @callback supports_default_ingest?() :: boolean()
+
+  @doc """
+  Validate configuration for given adaptor implementation
+  """
+  @spec cast_and_validate_config(module(), map()) :: Ecto.Changeset.t()
+  def cast_and_validate_config(mod, params) when is_atom(mod) do
+    params
+    |> mod.cast_config()
+    |> mod.validate_config()
+  end
+
+  @doc """
+  Returns the list of supported query languages for a given backend.
+  Returns an empty list if the adaptor does not support querying.
+  """
+  @spec get_supported_languages(Backend.t()) :: [atom()]
+  def get_supported_languages(%Backend{} = backend) do
+    adaptor = get_adaptor(backend)
+
+    if function_exported?(adaptor, :get_supported_languages, 0) do
+      adaptor.get_supported_languages()
+    else
+      []
+    end
+  end
+
+  @doc """
+  Returns true if a given `Backend` supports being used for default ingest.
+
+  Default to false.
+  """
+  @spec supports_default_ingest?(Backend.t()) :: boolean()
+  def supports_default_ingest?(backend) do
+    adaptor = get_adaptor(backend)
+
+    if function_exported?(adaptor, :supports_default_ingest?, 0) do
+      adaptor.supports_default_ingest?()
+    else
+      false
+    end
+  end
+
   @optional_callbacks pre_ingest: 3,
                       transform_config: 1,
                       format_batch: 1,
@@ -176,5 +197,6 @@ defmodule Logflare.Backends.Adaptor do
                       get_supported_languages: 0,
                       transform_query: 3,
                       map_query_parameters: 4,
-                      send_alert: 3
+                      send_alert: 3,
+                      supports_default_ingest?: 0
 end
